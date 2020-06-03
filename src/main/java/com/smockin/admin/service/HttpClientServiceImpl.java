@@ -1,11 +1,10 @@
 package com.smockin.admin.service;
 
-import com.smockin.admin.dto.HttpClientCallDTO;
-import com.smockin.admin.dto.response.HttpClientResponseDTO;
-import com.smockin.admin.exception.ValidationException;
-import com.smockin.mockserver.dto.MockServerState;
-import com.smockin.mockserver.exception.MockServerException;
-import com.smockin.utils.HttpClientUtils;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
@@ -14,12 +13,16 @@ import org.apache.http.client.fluent.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
+
+import com.smockin.admin.dto.HttpClientCallDTO;
+import com.smockin.admin.dto.response.HttpClientResponseDTO;
+import com.smockin.admin.exception.ValidationException;
+import com.smockin.mockserver.dto.MockServerState;
+import com.smockin.mockserver.exception.MockServerException;
+import com.smockin.utils.HttpClientUtils;
 
 /**
  * Created by mgallina.
@@ -29,6 +32,9 @@ public class HttpClientServiceImpl implements HttpClientService {
 
     private final Logger logger = LoggerFactory.getLogger(HttpClientServiceImpl.class);
 
+    @Value("${smockin.redirect.url}")
+    private String redirectUrl;
+    
     @Autowired
     private MockedServerEngineService mockedServerEngineService;
 
@@ -43,24 +49,49 @@ public class HttpClientServiceImpl implements HttpClientService {
         try {
 
             final MockServerState state = mockedServerEngineService.getRestServerState();
-
+            HttpClientResponseDTO httpClientResponseDTO;
+            
             if (!state.isRunning()) {
                 return new HttpClientResponseDTO(HttpStatus.NOT_FOUND.value());
             }
-
-            dto.setUrl("http://localhost:" + state.getPort() + dto.getUrl());
-
+            String url = dto.getUrl();
+            dto.setUrl(redirectUrl  + url);
             switch (dto.getMethod()) {
                 case GET:
-                    return get(dto);
+                    httpClientResponseDTO = get(dto);
+                    if(httpClientResponseDTO.getStatus() == 404) {  
+                      dto.setUrl("http://localhost:" + state.getPort() + url);
+                      httpClientResponseDTO = get(dto);
+                    }
+                    return httpClientResponseDTO;
                 case POST:
-                    return post(dto);
+                  httpClientResponseDTO = post(dto);
+                  if(httpClientResponseDTO.getStatus() == 404) {  
+                    dto.setUrl("http://localhost:" + state.getPort() + url);
+                    httpClientResponseDTO = post(dto);
+                  }
+                  return httpClientResponseDTO;
                 case PUT:
-                    return put(dto);
+                  httpClientResponseDTO = put(dto);
+                  if(httpClientResponseDTO.getStatus() == 404) {  
+                    dto.setUrl("http://localhost:" + state.getPort() + url);
+                    httpClientResponseDTO = put(dto);
+                  }
+                  return httpClientResponseDTO;
                 case DELETE:
-                    return delete(dto);
+                  httpClientResponseDTO = delete(dto);
+                  if(httpClientResponseDTO.getStatus() == 404) {  
+                    dto.setUrl("http://localhost:" + state.getPort() + url);
+                    httpClientResponseDTO = delete(dto);
+                  }
+                  return httpClientResponseDTO;
                 case PATCH:
-                    return patch(dto);
+                  httpClientResponseDTO = patch(dto);
+                  if(httpClientResponseDTO.getStatus() == 404) {  
+                    dto.setUrl("http://localhost:" + state.getPort() + url);
+                    httpClientResponseDTO = patch(dto);
+                  }
+                  return httpClientResponseDTO;
                 default:
                     throw new ValidationException("Invalid / Unsupported method: " + dto.getMethod());
             }
