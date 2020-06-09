@@ -39,67 +39,71 @@ public class HttpClientServiceImpl implements HttpClientService {
     private MockedServerEngineService mockedServerEngineService;
 
     @Override
-    public HttpClientResponseDTO handleCall(final HttpClientCallDTO dto) throws ValidationException {
-        logger.debug("handleCall called");
+    public HttpClientResponseDTO handleCall(final HttpClientCallDTO dto, boolean justRedirect) throws ValidationException {
+      logger.debug("handleCall called");
 
-        debugDTO(dto);
+      debugDTO(dto);
 
-        validateRequest(dto);
+      validateRequest(dto);
 
-        try {
+      try {
 
-            final MockServerState state = mockedServerEngineService.getRestServerState();
-            HttpClientResponseDTO httpClientResponseDTO;
-            
-            if (!state.isRunning()) {
-                return new HttpClientResponseDTO(HttpStatus.NOT_FOUND.value());
-            }
-            String url = dto.getUrl();
-            dto.setUrl(redirectUrl  + url);
-            switch (dto.getMethod()) {
-                case GET:
+          final MockServerState state = mockedServerEngineService.getRestServerState();
+          HttpClientResponseDTO httpClientResponseDTO;
+          
+          if (!state.isRunning()) {
+              return new HttpClientResponseDTO(HttpStatus.NOT_FOUND.value());
+          }
+          String url = dto.getUrl();
+          dto.setUrl(redirectUrl  + url);
+          switch (dto.getMethod()) {
+              case GET:
+                  httpClientResponseDTO = get(dto);
+                  if(!justRedirect && httpClientResponseDTO.getStatus() == 404) {  
+                    dto.setUrl("http://localhost:" + state.getPort() + url);
                     httpClientResponseDTO = get(dto);
-                    if(httpClientResponseDTO.getStatus() == 404) {  
-                      dto.setUrl("http://localhost:" + state.getPort() + url);
-                      httpClientResponseDTO = get(dto);
-                    }
-                    return httpClientResponseDTO;
-                case POST:
+                  }
+                  return httpClientResponseDTO;
+              case POST:
+                httpClientResponseDTO = post(dto);
+                if(!justRedirect && httpClientResponseDTO.getStatus() == 404) {  
+                  dto.setUrl("http://localhost:" + state.getPort() + url);
                   httpClientResponseDTO = post(dto);
-                  if(httpClientResponseDTO.getStatus() == 404) {  
-                    dto.setUrl("http://localhost:" + state.getPort() + url);
-                    httpClientResponseDTO = post(dto);
-                  }
-                  return httpClientResponseDTO;
-                case PUT:
+                }
+                return httpClientResponseDTO;
+              case PUT:
+                httpClientResponseDTO = put(dto);
+                if(!justRedirect && httpClientResponseDTO.getStatus() == 404) {  
+                  dto.setUrl("http://localhost:" + state.getPort() + url);
                   httpClientResponseDTO = put(dto);
-                  if(httpClientResponseDTO.getStatus() == 404) {  
-                    dto.setUrl("http://localhost:" + state.getPort() + url);
-                    httpClientResponseDTO = put(dto);
-                  }
-                  return httpClientResponseDTO;
-                case DELETE:
+                }
+                return httpClientResponseDTO;
+              case DELETE:
+                httpClientResponseDTO = delete(dto);
+                if(!justRedirect && httpClientResponseDTO.getStatus() == 404) {  
+                  dto.setUrl("http://localhost:" + state.getPort() + url);
                   httpClientResponseDTO = delete(dto);
-                  if(httpClientResponseDTO.getStatus() == 404) {  
-                    dto.setUrl("http://localhost:" + state.getPort() + url);
-                    httpClientResponseDTO = delete(dto);
-                  }
-                  return httpClientResponseDTO;
-                case PATCH:
+                }
+                return httpClientResponseDTO;
+              case PATCH:
+                httpClientResponseDTO = patch(dto);
+                if(!justRedirect && httpClientResponseDTO.getStatus() == 404) {  
+                  dto.setUrl("http://localhost:" + state.getPort() + url);
                   httpClientResponseDTO = patch(dto);
-                  if(httpClientResponseDTO.getStatus() == 404) {  
-                    dto.setUrl("http://localhost:" + state.getPort() + url);
-                    httpClientResponseDTO = patch(dto);
-                  }
-                  return httpClientResponseDTO;
-                default:
-                    throw new ValidationException("Invalid / Unsupported method: " + dto.getMethod());
-            }
+                }
+                return httpClientResponseDTO;
+              default:
+                  throw new ValidationException("Invalid / Unsupported method: " + dto.getMethod());
+          }
 
-        } catch (IOException | MockServerException ex) {
-            return new HttpClientResponseDTO(HttpStatus.NOT_FOUND.value());
-        }
-
+      } catch (IOException | MockServerException ex) {
+          return new HttpClientResponseDTO(HttpStatus.NOT_FOUND.value());
+      }  
+    }
+    
+    @Override
+    public HttpClientResponseDTO handleCall(final HttpClientCallDTO dto) throws ValidationException {
+      return handleCall(dto, false);
     }
 
     HttpClientResponseDTO get(final HttpClientCallDTO reqDto) throws IOException {

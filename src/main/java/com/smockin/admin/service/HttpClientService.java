@@ -10,5 +10,6 @@ import com.smockin.admin.exception.ValidationException;
 public interface HttpClientService {
 
     HttpClientResponseDTO handleCall(final HttpClientCallDTO httpClientCallDTO) throws ValidationException;
+    HttpClientResponseDTO handleCall(final HttpClientCallDTO httpClientCallDTO, boolean justRedirect) throws ValidationException;
 
 }

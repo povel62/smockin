@@ -1,5 +1,24 @@
 package com.smockin.mockserver.engine;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Optional;
+
+import org.apache.commons.lang3.RandomUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.smockin.admin.dto.HttpClientCallDTO;
+import com.smockin.admin.dto.response.HttpClientResponseDTO;
+import com.smockin.admin.exception.ValidationException;
 import com.smockin.admin.persistence.dao.RestfulMockDAO;
 import com.smockin.admin.persistence.entity.RestfulMock;
 import com.smockin.admin.persistence.entity.RestfulMockDefinitionOrder;
@@ -7,24 +26,19 @@ import com.smockin.admin.persistence.entity.RestfulMockDefinitionRule;
 import com.smockin.admin.persistence.enums.RestMethodEnum;
 import com.smockin.admin.persistence.enums.RestMockTypeEnum;
 import com.smockin.admin.persistence.enums.SmockinUserRoleEnum;
+import com.smockin.admin.service.HttpClientService;
 import com.smockin.mockserver.exception.InboundParamMatchException;
-import com.smockin.mockserver.service.*;
+import com.smockin.mockserver.service.HttpProxyService;
+import com.smockin.mockserver.service.InboundParamMatchService;
+import com.smockin.mockserver.service.JavaScriptResponseHandler;
+import com.smockin.mockserver.service.MockOrderingCounterService;
+import com.smockin.mockserver.service.RuleEngine;
+import com.smockin.mockserver.service.ServerSideEventService;
+import com.smockin.mockserver.service.StatefulService;
 import com.smockin.mockserver.service.dto.RestfulResponseDTO;
-import org.apache.commons.lang3.RandomUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+
 import spark.Request;
 import spark.Response;
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Optional;
 
 /**
  * Created by mgallina.
@@ -59,6 +73,8 @@ public class MockedRestServerEngineUtils {
     @Autowired
     private StatefulService statefulService;
 
+    @Autowired
+    private HttpClientService httpClientService;
 
     public Optional<String> loadMockedResponse(final Request request,
                                                final Response response,
@@ -67,6 +83,25 @@ public class MockedRestServerEngineUtils {
 
         debugInboundRequest(request);
 
+        HttpClientCallDTO http = new HttpClientCallDTO();
+        http.setUrl(request.pathInfo());
+        http.setMethod(RestMethodEnum.findByName(request.requestMethod()));
+        http.setHeaders(request.params());
+        http.setBody(request.body());
+        HttpClientResponseDTO responseDto = null;
+        try
+        {
+          responseDto = httpClientService.handleCall(http, true);
+        } catch (ValidationException e)
+        {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        }
+        
+        if(responseDto != null && responseDto.getStatus() != 404) {
+          return  Optional.of(new ResponseEntity<HttpClientResponseDTO>(responseDto, HttpStatus.OK).getBody().getBody());
+        }
+        
         try {
 
             final RestfulMock mock = (isMultiUserMode)
