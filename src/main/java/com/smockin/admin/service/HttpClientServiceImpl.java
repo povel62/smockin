@@ -55,7 +55,7 @@ public class HttpClientServiceImpl implements HttpClientService {
               return new HttpClientResponseDTO(HttpStatus.NOT_FOUND.value());
           }
           String url = dto.getUrl();
-          dto.setUrl(redirectUrl  + url);
+          dto.setUrl((redirectUrl  + url).replaceAll("(?<!(http:|https:))//", "/"));
           switch (dto.getMethod()) {
               case GET:
                   httpClientResponseDTO = get(dto);

@@ -2,9 +2,7 @@ package com.smockin.mockserver.engine;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Optional;
+import java.util.*;
 
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -39,6 +37,8 @@ import com.smockin.mockserver.service.dto.RestfulResponseDTO;
 
 import spark.Request;
 import spark.Response;
+
+import javax.servlet.http.HttpServletRequest;
 
 /**
  * Created by mgallina.
@@ -76,6 +76,23 @@ public class MockedRestServerEngineUtils {
     @Autowired
     private HttpClientService httpClientService;
 
+    private Map<String, String> getHeadersInfo(HttpServletRequest request) {
+        Map<String, String> map = new HashMap<String, String>();
+
+        Enumeration headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()) {
+
+            String key = (String) headerNames.nextElement();
+            String value = request.getHeader(key);
+            System.out.println(key + ": " + value);
+
+            if(!(key.equalsIgnoreCase("Content-Length") || key.equalsIgnoreCase("Host")))
+                map.put(key, value);
+        }
+
+        return map;
+    }
+
     public Optional<String> loadMockedResponse(final Request request,
                                                final Response response,
                                                final boolean isMultiUserMode) {
@@ -86,7 +103,9 @@ public class MockedRestServerEngineUtils {
         HttpClientCallDTO http = new HttpClientCallDTO();
         http.setUrl(request.pathInfo());
         http.setMethod(RestMethodEnum.findByName(request.requestMethod()));
-        http.setHeaders(request.params());
+        http.setHeaders(getHeadersInfo(request.raw()));
+//        http.setHeaders(request.params());
+
         http.setBody(request.body());
         HttpClientResponseDTO responseDto = null;
         try
@@ -99,7 +118,8 @@ public class MockedRestServerEngineUtils {
         }
         
         if(responseDto != null && responseDto.getStatus() != 404) {
-          return  Optional.of(new ResponseEntity<HttpClientResponseDTO>(responseDto, HttpStatus.OK).getBody().getBody());
+            response.status(responseDto.getStatus());
+          return  Optional.of(new ResponseEntity<HttpClientResponseDTO>(responseDto, HttpStatus.resolve(responseDto.getStatus())).getBody().getBody());
         }
         
         try {
