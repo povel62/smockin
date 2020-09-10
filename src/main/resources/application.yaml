@@ -16,7 +16,7 @@ datasource:
 smockin:
   ftp.root.dir: "${user.home}/.smockin/ftp/"
   auth.exclusions: '{"*.html":["GET"],"*.js":["GET"],"*.css":["GET"],"*.woff2":["GET"],"*.png":["GET"],"*.gif":["GET"],"/auth":["POST"],"/user/mode":["GET"],"/mockedserver/rest/status":["GET"],"/mockedserver/jms/status":["GET"],"/mockedserver/ftp/status":["GET"],"/password/reset/token/*":["GET","POST"]}'
-  redirect.url: "http://172.26.16.43:8080/"
+  redirect.url: "https://genchi-master.pointclickcare.com:443/"
 ---
 # NOTE
 # The 'start.sh' script overrides the below DB related params using values defined
